@@ -3,7 +3,7 @@ from tkinter import ttk
 import psutil
 from pystray import Icon, Menu, MenuItem
 from PIL import Image
-
+import time
 
 class MonitorToolUI:
     def __init__(self, minimize_on_start=False):
@@ -51,11 +51,7 @@ class MonitorToolUI:
         self.root.quit()
 
     def refresh(self):
-        try:
-            from Monitoring import get_cpu_usage
-            cpu_usage = get_cpu_usage()
-        except:
-            cpu_usage = psutil.cpu_percent(interval=None)
+        cpu_usage = psutil.cpu_percent(interval=None)
 
         self.label.config(text=f"CPU Usage: {cpu_usage:.1f}%")
 
