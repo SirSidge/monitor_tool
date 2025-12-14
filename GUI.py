@@ -10,6 +10,7 @@ class MonitorToolUI:
         self.root = tk.Tk()
         self.root.geometry("800x580")
         self.root.title("Monitor Tool")
+        self.prev_state = False
 
         style = ttk.Style()
         style.configure("Big.TLabel", font=("Helvetica", 24))
@@ -55,10 +56,27 @@ class MonitorToolUI:
 
         self.label.config(text=f"CPU Usage: {cpu_usage:.1f}%")
 
+        date_suffix = time.strftime("%d%b").lstrip('0')
+        file_path = fr'C:\monitoring tool - temp data\tmp_data_{date_suffix}.txt'
+
         if self.is_poe_running():
-            self.label2.config(text="POE is running ✓", foreground="green")
+            if not self.prev_state:
+                try:
+                    with open(file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"start: {time.ctime()},")
+                except FileNotFoundError:
+                    print("The file does not exist.")
+                self.prev_state = True
+            self.label2.config(text=f"POE is running ✓", foreground="green")
         else:
-            self.label2.config(text="POE is not running ⚠", foreground="red")
+            if self.prev_state:
+                try:
+                    with open(file_path, 'a', encoding='utf-8') as f:
+                        f.write(f"end: {time.ctime()}\n")
+                except FileNotFoundError:
+                    print("The file does not exist.")
+                self.prev_state = False
+            self.label2.config(text=f"POE is not running ⚠", foreground="red")
 
         self.root.after(1000, self.refresh)
 
