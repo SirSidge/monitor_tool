@@ -8,9 +8,12 @@ import time
 class MonitorToolUI:
     def __init__(self, minimize_on_start=False):
         self.root = tk.Tk()
+        self.root.protocol("WM_SAVE_YOURSELF", self.log_shutdown)
         self.root.geometry("800x580")
         self.root.title("Monitor Tool")
         self.prev_state = False
+        self.root.withdraw()
+        self.taskbar_image = Image.new('RGB', (64, 64), color = 'green')
 
         style = ttk.Style()
         style.configure("Big.TLabel", font=("Helvetica", 24))
@@ -21,13 +24,14 @@ class MonitorToolUI:
         self.label2 = ttk.Label(self.root, text="-- initialising --", font=("Helvetica", 18), anchor="e")
         self.label2.pack(fill="x", padx=50, pady=10)
 
+        self.log_startup()
+
         if minimize_on_start:
             self.root.withdraw()
 
-        image = Image.new('RGB', (64, 64), color = 'red')
         self.icon = Icon(
             'my_app',
-            image,
+            self.taskbar_image,
             'My App',
             menu=Menu(
                 MenuItem('Show', self.show_window),
@@ -37,6 +41,20 @@ class MonitorToolUI:
         self.icon.run_detached()
 
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
+
+    def log_startup(self):
+        date_suffix = time.strftime("%d%b").lstrip('0')
+        file_path = fr'C:\monitoring tool - temp data\tmp_data_{date_suffix}.txt'
+        with open(file_path, 'a', encoding='utf-8') as f:
+            f.write(f"Monitoring started: {time.ctime()}\n")
+    
+    def log_shutdown(self):
+        date_suffix = time.strftime("%d%b").lstrip('0')
+        file_path = fr'C:\monitoring tool - temp data\tmp_data_{date_suffix}.txt'
+        with open(file_path, 'a', encoding='utf-8') as f:
+            if self.prev_state:
+                f.write(f"end: {time.ctime()}\n")
+            f.write(f"Monitoring ended: {time.ctime()}\n")
 
     def is_poe_running(self):
         return any(proc.name() == "PathOfExile.exe" for proc in psutil.process_iter(['name']))
@@ -48,6 +66,7 @@ class MonitorToolUI:
         self.root.withdraw()
 
     def quit_app(self):
+        self.log_shutdown()
         self.icon.stop()
         self.root.quit()
 
@@ -67,7 +86,9 @@ class MonitorToolUI:
                 except FileNotFoundError:
                     print("The file does not exist.")
                 self.prev_state = True
-            self.label2.config(text=f"POE is running ✓", foreground="green")
+            self.label2.config(text=f"POE is running ⚠", foreground="red")
+            new_image = Image.new('RGB', (64, 64), 'red')
+            self.icon.icon = new_image
         else:
             if self.prev_state:
                 try:
@@ -76,12 +97,13 @@ class MonitorToolUI:
                 except FileNotFoundError:
                     print("The file does not exist.")
                 self.prev_state = False
-            self.label2.config(text=f"POE is not running ⚠", foreground="red")
+            self.label2.config(text=f"POE is not running ✓", foreground="green")
+            new_image = Image.new('RGB', (64, 64), 'green')
+            self.icon.icon = new_image
 
         self.root.after(1000, self.refresh)
 
     def start(self):
-        """Start the UI and refresh loop"""
         self.root.after(100, self.refresh)
         self.root.mainloop()
 
