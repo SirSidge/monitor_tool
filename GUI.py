@@ -43,15 +43,11 @@ class MonitorToolUI:
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
 
     def log_startup(self):
-        date_suffix = time.strftime("%d%b").lstrip('0')
-        file_path = fr'C:\monitoring tool - temp data\tmp_data_{date_suffix}.txt'
-        with open(file_path, 'a', encoding='utf-8') as f:
+        with open(self.get_file_path(), 'a', encoding='utf-8') as f:
             f.write(f"Monitoring started: {time.ctime()}\n")
     
     def log_shutdown(self):
-        date_suffix = time.strftime("%d%b").lstrip('0')
-        file_path = fr'C:\monitoring tool - temp data\tmp_data_{date_suffix}.txt'
-        with open(file_path, 'a', encoding='utf-8') as f:
+        with open(self.get_file_path(), 'a', encoding='utf-8') as f:
             if self.prev_state:
                 f.write(f"end: {time.ctime()}\n")
             f.write(f"Monitoring ended: {time.ctime()}\n")
@@ -70,18 +66,19 @@ class MonitorToolUI:
         self.icon.stop()
         self.root.quit()
 
+    def get_file_path(self):
+        date_suffix = time.strftime("%d%b").lstrip('0')
+        return fr'C:\monitoring tool - temp data\tmp_data_{date_suffix}.txt'
+
     def refresh(self):
         cpu_usage = psutil.cpu_percent(interval=None)
 
         self.label.config(text=f"CPU Usage: {cpu_usage:.1f}%")
 
-        date_suffix = time.strftime("%d%b").lstrip('0')
-        file_path = fr'C:\monitoring tool - temp data\tmp_data_{date_suffix}.txt'
-
         if self.is_poe_running():
             if not self.prev_state:
                 try:
-                    with open(file_path, 'a', encoding='utf-8') as f:
+                    with open(self.get_file_path(), 'a', encoding='utf-8') as f:
                         f.write(f"start: {time.ctime()},")
                 except FileNotFoundError:
                     print("The file does not exist.")
@@ -92,7 +89,7 @@ class MonitorToolUI:
         else:
             if self.prev_state:
                 try:
-                    with open(file_path, 'a', encoding='utf-8') as f:
+                    with open(self.get_file_path(), 'a', encoding='utf-8') as f:
                         f.write(f"end: {time.ctime()}\n")
                 except FileNotFoundError:
                     print("The file does not exist.")
