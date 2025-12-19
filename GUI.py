@@ -14,6 +14,8 @@ class MonitorToolUI:
         self.prev_state = False
         self.root.withdraw()
         self.taskbar_image = Image.new('RGB', (64, 64), color = 'green')
+        self.start_time = time.time()
+        self.alarm = False
 
         style = ttk.Style()
         style.configure("Big.TLabel", font=("Helvetica", 24))
@@ -23,6 +25,9 @@ class MonitorToolUI:
 
         self.label2 = ttk.Label(self.root, text="-- initialising --", font=("Helvetica", 18), anchor="e")
         self.label2.pack(fill="x", padx=50, pady=10)
+
+        self.timer_label = ttk.Label(self.root, text="", font=("Helvetica", 14), foreground="red", anchor="e")
+        self.timer_label.pack(fill="x", padx=50, pady=(0, 20))
 
         self.log_startup()
 
@@ -83,6 +88,7 @@ class MonitorToolUI:
                 except FileNotFoundError:
                     print("The file does not exist.")
                 self.prev_state = True
+                self.start_time = time.time()
             self.label2.config(text=f"POE is running ⚠", foreground="red")
             new_image = Image.new('RGB', (64, 64), 'red')
             self.icon.icon = new_image
@@ -97,6 +103,15 @@ class MonitorToolUI:
             self.label2.config(text=f"POE is not running ✓", foreground="green")
             new_image = Image.new('RGB', (64, 64), 'green')
             self.icon.icon = new_image
+
+        elapsed_time = time.time() - self.start_time
+        if elapsed_time >= 7200 and not self.alarm:
+            self.timer_label.config(text="2 hours depleted")
+            self.alarm = True
+        else:
+            if not self.is_poe_running():
+                self.timer_label.config(text="")
+                self.alarm = False
 
         self.root.after(1000, self.refresh)
 
