@@ -6,6 +6,8 @@ from PIL import Image
 import time
 
 class MonitorToolUI:
+    _VALID_STATES = {"productive", "idle", "unproductive"}
+
     def __init__(self, minimize_on_start=False):
         self.root = tk.Tk()
         self.root.protocol("WM_SAVE_YOURSELF", self.log_shutdown)
@@ -16,6 +18,9 @@ class MonitorToolUI:
         self.taskbar_image = Image.new('RGB', (64, 64), color = 'green')
         self.start_time = time.time()
         self.alarm = False
+        self.productivity_status = "idle"
+        self.updating_processes = False
+        self._last_process_update = 0
 
         style = ttk.Style()
         style.configure("Big.TLabel", font=("Helvetica", 24))
@@ -28,6 +33,19 @@ class MonitorToolUI:
 
         self.timer_label = ttk.Label(self.root, text="", font=("Helvetica", 14), foreground="red", anchor="e")
         self.timer_label.pack(fill="x", padx=50, pady=(0, 20))
+
+        # Scrollable list-box for currently running process names
+        header = ttk.Label(self.root, text="Running process names (for debugging):", font=("Helvetica", 12))
+        header.pack(anchor="w", padx=50, pady=(0, 5))
+        list_frame = ttk.Frame(self.root)
+        list_frame.pack(fill="both", expand=True, padx=50, pady=20)
+        self.process_listbox = tk.Listbox(list_frame, font=("Consolas", 10), activestyle="none")
+        self.process_listbox.pack(side="left", fill="both", expand=True)
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.process_listbox.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.process_listbox.config(yscrollcommand=scrollbar.set)
+        self.process_button = ttk.Button(self.root, text="Display processes", command=self.toggle_process_updates)
+        self.process_button.pack(pady=10)
 
         self.log_startup()
 
@@ -57,8 +75,41 @@ class MonitorToolUI:
                 f.write(f"end: {time.ctime()}\n")
             f.write(f"Monitoring ended: {time.ctime()}\n")
 
+    def _set_status(self, state):
+        if state not in self._VALID_STATES:
+            raise ValueError(f"Invalid state: {state}")
+        self.productivity_status = state
+
+    def update_process_list(self):
+        self.process_listbox.delete(0, tk.END)
+        process_names = sorted({p.name() for p in psutil.process_iter(['name']) if p.name()})
+        for name in process_names:
+            self.process_listbox.insert(tk.END, name)
+
+    def toggle_process_updates(self):
+        if not self.updating_processes:
+            self.updating_processes = True
+            self.process_button.config(text="Stop")
+            self.update_process_list()
+            self.continue_process_updates()
+        else:
+            self.updating_processes = False
+            self.process_button.config(text="Display processes")
+
+    def continue_process_updates(self):
+        if not self.updating_processes:
+            return
+        current_time = time.time()
+        if current_time - self._last_process_update >= 5:
+            self.update_process_list()
+            self._last_process_update = current_time
+        self.root.after(1000, self.continue_process_updates)
+
     def is_poe_running(self):
-        return any(proc.name() == "PathOfExile.exe" for proc in psutil.process_iter(['name']))
+        return any(proc.name().lower() == "PathOfExile.exe" for proc in psutil.process_iter(['name'])) # Note: Added the .lower(), if it suddenly breaks, this could be why.
+    
+    def is_vscode_running(self):
+        return any(proc.name().lower() == "Code.exe" for proc in psutil.process_iter(['name']))
     
     def show_window(self):
         self.root.deiconify()
@@ -81,6 +132,7 @@ class MonitorToolUI:
         self.label.config(text=f"CPU Usage: {cpu_usage:.1f}%")
 
         if self.is_poe_running():
+            self._set_status("unproductive")
             if not self.prev_state:
                 try:
                     with open(self.get_file_path(), 'a', encoding='utf-8') as f:
@@ -89,10 +141,21 @@ class MonitorToolUI:
                     print("The file does not exist.")
                 self.prev_state = True
                 self.start_time = time.time()
+                self.alarm = False
+                self.timer_label.config(text="")
             self.label2.config(text=f"POE is running ⚠", foreground="red")
             new_image = Image.new('RGB', (64, 64), 'red')
             self.icon.icon = new_image
+
+            elapsed_time = time.time() - self.start_time
+            if elapsed_time >= 7200 and not self.alarm: #7200 seconds
+                self.timer_label.config(text="2 hours depleted")
+                self.alarm = True
+
+        elif self.is_vscode_running():
+            self._set_status("productive")
         else:
+            self._set_status("idle")
             if self.prev_state:
                 try:
                     with open(self.get_file_path(), 'a', encoding='utf-8') as f:
@@ -103,15 +166,6 @@ class MonitorToolUI:
             self.label2.config(text=f"POE is not running ✓", foreground="green")
             new_image = Image.new('RGB', (64, 64), 'green')
             self.icon.icon = new_image
-
-        elapsed_time = time.time() - self.start_time
-        if elapsed_time >= 7200 and not self.alarm:
-            self.timer_label.config(text="2 hours depleted")
-            self.alarm = True
-        else:
-            if not self.is_poe_running():
-                self.timer_label.config(text="")
-                self.alarm = False
 
         self.root.after(1000, self.refresh)
 
