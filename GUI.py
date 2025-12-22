@@ -25,11 +25,15 @@ class MonitorToolUI:
         style = ttk.Style()
         style.configure("Big.TLabel", font=("Helvetica", 24))
 
-        self.label = ttk.Label(self.root, text="-- initialising --", style="Big.TLabel")
-        self.label.pack(expand=True, pady=20)
+        self.cpu_label = ttk.Label(self.root, text="-- initialising --", style="Big.TLabel")
+        self.cpu_label.pack(expand=True, pady=20)
 
-        self.label2 = ttk.Label(self.root, text="-- initialising --", font=("Helvetica", 18), anchor="e")
-        self.label2.pack(fill="x", padx=50, pady=10)
+        # Foreground app display text
+        self.foreground_label = ttk.Label(self.root, text="-- initialising --", font=("Helvetica", 18), anchor="ne")
+        self.foreground_label.pack(fill="x", padx=50, pady=10)
+
+        self.poe_label = ttk.Label(self.root, text="-- initialising --", font=("Helvetica", 18), anchor="e")
+        self.poe_label.pack(fill="x", padx=50, pady=10)
 
         self.timer_label = ttk.Label(self.root, text="", font=("Helvetica", 14), foreground="red", anchor="e")
         self.timer_label.pack(fill="x", padx=50, pady=(0, 20))
@@ -106,10 +110,10 @@ class MonitorToolUI:
         self.root.after(1000, self.continue_process_updates)
 
     def is_poe_running(self):
-        return any(proc.name().lower() == "PathOfExile.exe" for proc in psutil.process_iter(['name'])) # Note: Added the .lower(), if it suddenly breaks, this could be why.
+        return any(proc.name() == "PathOfExile.exe" for proc in psutil.process_iter(['name'])) # Note: Added the .lower(), if it suddenly breaks, this could be why.
     
     def is_vscode_running(self):
-        return any(proc.name().lower() == "Code.exe" for proc in psutil.process_iter(['name']))
+        return any(proc.name() == "Code.exe" for proc in psutil.process_iter(['name']))
     
     def show_window(self):
         self.root.deiconify()
@@ -128,8 +132,9 @@ class MonitorToolUI:
 
     def refresh(self):
         cpu_usage = psutil.cpu_percent(interval=None)
+        self.foreground_label.config(text=f"Foreground App: TBC")
 
-        self.label.config(text=f"CPU Usage: {cpu_usage:.1f}%")
+        self.cpu_label.config(text=f"CPU Usage: {cpu_usage:.1f}%")
 
         if self.is_poe_running():
             self._set_status("unproductive")
@@ -143,7 +148,7 @@ class MonitorToolUI:
                 self.start_time = time.time()
                 self.alarm = False
                 self.timer_label.config(text="")
-            self.label2.config(text=f"POE is running ⚠", foreground="red")
+            self.poe_label.config(text=f"POE is running ⚠", foreground="red")
             new_image = Image.new('RGB', (64, 64), 'red')
             self.icon.icon = new_image
 
@@ -163,7 +168,7 @@ class MonitorToolUI:
                 except FileNotFoundError:
                     print("The file does not exist.")
                 self.prev_state = False
-            self.label2.config(text=f"POE is not running ✓", foreground="green")
+            self.poe_label.config(text=f"POE is not running ✓", foreground="green")
             new_image = Image.new('RGB', (64, 64), 'green')
             self.icon.icon = new_image
 

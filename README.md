@@ -16,3 +16,6 @@
 3: Find Apps
 3.1: Search for all apps currently running
 3.2: Add apps to 'productivity_status'
+
+4: Single app
+4.1: Check if app is already running, if so prevent second iteration.
