@@ -23,13 +23,8 @@ class MonitorToolUI:
         self.alarm = False
         self.productivity_status = "idle"
         self.updating_processes = False
-        self._last_process_update = 0
-        
-        self.temp_stats = {"Day": 0, "Week": 12, "Month": 48, "Total": 210}
-        self.h_day = self.temp_stats["Day"] # Need to pull info from the above temp_stats
-        self.h_week = self.temp_stats["Week"]
-        self.h_month = self.temp_stats["Month"]
-        self.h_total = self.temp_stats["Total"]
+        self._last_process_update = time.time()
+        self.temp_stats = {}
 
         style = ttk.Style()
         style.configure("Big.TLabel", font=("Helvetica", 24))
@@ -48,7 +43,7 @@ class MonitorToolUI:
         self.timer_label.pack(fill="x", padx=50, pady=(0, 20))
 
         # Stats
-        self.stats_label = ttk.Label(self.root, text="Day:\nWeek:\nMonth:\nTotal:", font=("Helvetica", 14), anchor="nw")
+        self.stats_label = ttk.Label(self.root, text="Productive\nDay:\nWeek:\nMonth:\nTotal:\nUnproductive\nDay:\nWeek:\nMonth:\nTotal:\nIdle\nDay:\nWeek:\nMonth:\nTotal:", font=("Helvetica", 14), anchor="nw")
         self.stats_label.pack(fill="x", padx=50, pady=(0, 20))
 
         # Scrollable list-box for currently running process names
@@ -86,12 +81,8 @@ class MonitorToolUI:
         try:
             with open(fr'C:\monitoring tool - temp data\stats.json', "r", encoding='utf-8') as f:
                 self.temp_stats = json.load(f)
-                self.h_day = self.temp_stats["Day"]
-                self.h_week = self.temp_stats["Week"]
-                self.h_month = self.temp_stats["Month"]
-                self.h_total = self.temp_stats["Total"]
         except FileNotFoundError:
-            temp_data = {"Day": 0, "Week": 12, "Month": 48, "Total": 210}
+            temp_data = {"productive": {"day": 0, "week": 0, "month": 0, "total": 0}, "unproductive": {"day": 0, "week": 0, "month": 0, "total": 0}, "idle": {"day": 0, "week": 0, "month": 0, "total": 0}}
             with open(fr'C:\monitoring tool - temp data\stats.json', 'w') as f:
                 json.dump(temp_data, f, indent=4)
             self.temp_stats = temp_data
@@ -99,6 +90,7 @@ class MonitorToolUI:
             f.write(f"Monitoring started: {time.ctime()}\n")
     
     def log_shutdown(self):
+        self._set_status("idle")
         with open(fr'C:\monitoring tool - temp data\stats.json', "w", encoding='utf-8') as f:
             self.update_stats()
             json.dump(self.temp_stats, f, indent=4)
@@ -154,13 +146,25 @@ class MonitorToolUI:
 
     def update_stats(self):
         current_time = time.time()
-        if current_time - self._last_process_update >= 5:
-            self.h_day += 1
-            self.h_week += 2
-            self.h_month += 3
-            self.h_total += 4
-            self.temp_stats = {"Day": self.h_day, "Week": self.h_week, "Month": self.h_month, "Total": self.h_total}
-            self.stats_label.config(text=f"Day: {self.temp_stats["Day"]}\nWeek: {self.temp_stats["Week"]}\nMonth: {self.temp_stats["Month"]}\nTotal: {self.temp_stats["Total"]}")
+        time_dif_temp = current_time - self._last_process_update
+        if time_dif_temp >= 5:
+            if self.productivity_status == "productive":
+                self.temp_stats["productive"]["day"] += (time_dif_temp/3600)
+                self.temp_stats["productive"]["week"] += (time_dif_temp/3600)
+                self.temp_stats["productive"]["month"] += (time_dif_temp/3600)
+                self.temp_stats["productive"]["total"] += (time_dif_temp/3600)
+            elif self.productivity_status == "unproductive":
+                self.temp_stats["unproductive"]["day"] += (time_dif_temp/3600)
+                self.temp_stats["unproductive"]["week"] += (time_dif_temp/3600)
+                self.temp_stats["unproductive"]["month"] += (time_dif_temp/3600)
+                self.temp_stats["unproductive"]["total"] += (time_dif_temp/3600)
+            elif self.productivity_status == "idle":
+                self.temp_stats["idle"]["day"] += (time_dif_temp/3600)
+                self.temp_stats["idle"]["week"] += (time_dif_temp/3600)
+                self.temp_stats["idle"]["month"] += (time_dif_temp/3600)
+                self.temp_stats["idle"]["total"] += (time_dif_temp/3600)
+            #self.stats_label.config(text=f"Productive\nDay: {round(self.temp_stats["productive"]["day"], 2)}h\nWeek: {round(self.temp_stats["productive"]["week"], 2)}h\nMonth: {round(self.temp_stats["productive"]["month"], 2)}h\nTotal: {round(self.temp_stats["productive"]["total"], 2)}h\n\nUnproductive\nDay: {round(self.temp_stats["unproductive"]["day"], 2)}h\nWeek: {round(self.temp_stats["unproductive"]["week"], 2)}h\nMonth: {round(self.temp_stats["unproductive"]["month"], 2)}h\nTotal: {round(self.temp_stats["unproductive"]["total"], 2)}h\n\nIdle\nDay: {round(self.temp_stats["idle"]["day"], 2)}h\nWeek: {round(self.temp_stats["idle"]["week"], 2)}h\nMonth: {round(self.temp_stats["idle"]["month"], 2)}h\nTotal: {round(self.temp_stats["idle"]["total"], 2)}h")
+            self.stats_label.config(text=f"Productive\nDay: {round(self.temp_stats["productive"]["day"])}h\nWeek: {round(self.temp_stats["productive"]["week"])}h\nMonth: {round(self.temp_stats["productive"]["month"])}h\nTotal: {round(self.temp_stats["productive"]["total"], 10)}h\n\nUnproductive\nDay: {round(self.temp_stats["unproductive"]["day"])}h\nWeek: {round(self.temp_stats["unproductive"]["week"])}h\nMonth: {round(self.temp_stats["unproductive"]["month"])}h\nTotal: {round(self.temp_stats["unproductive"]["total"])}h\n\nIdle\nDay: {round(self.temp_stats["idle"]["day"])}h\nWeek: {round(self.temp_stats["idle"]["week"])}h\nMonth: {round(self.temp_stats["idle"]["month"])}h\nTotal: {round(self.temp_stats["idle"]["total"])}h")
             self._last_process_update = current_time
         self.root.after(1000, self.update_stats)
 

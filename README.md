@@ -9,6 +9,7 @@
 1.2: Weekly time limit of 18h
 1.3: Reset and/or Sleep button for above timer.
 1.4: Auto-close unproductive apps
+1.5: Ability to add app from the "display processes" window to any status.
 
 2: ----- Productivity calculator ----- 
 2.1: Measure productive time
@@ -20,12 +21,12 @@
 4: ----- Single monitoring app ----- 
 4.1: Check if app is already running, if so prevent second iteration.
 
+5: ----- Implement AI -----
+5.1: Include AI to detect if an app (for example a new game) should be allocated to unproductive or not.
+
 
 ----- Misc -----
 What does the JSON file need to store?
 - Running totals: daily, weekly, monthly, and total
 - Time in statuses: Productive, Unproductive, Idle
 - What date and time events occured
-
-
-Can I have a C-code script running for my python app? I don't see how I can see what app is in the foreground using python, but maybe with C I can?
