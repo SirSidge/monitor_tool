@@ -6,7 +6,15 @@ from PIL import Image
 import time
 import json
 import ctypes
-from ctypes import wintypes
+from ctypes import wintypes, Structure, windll, c_uint, c_ulonglong, sizeof, byref
+import os
+from pathlib import Path
+
+class LASTINPUTINFO(Structure):
+    _fields_ = [
+        ('cbSize', c_uint),
+        ('dwTime', c_uint),
+    ]
 
 class MonitorToolUI:
     _VALID_STATES = {"productive", "idle", "unproductive"}
@@ -78,16 +86,45 @@ class MonitorToolUI:
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
 
     def log_startup(self):
+        stats_path = Path(r'C:\monitoring tool - temp data\stats.json')
+        
         try:
-            with open(fr'C:\monitoring tool - temp data\stats.json', "r", encoding='utf-8') as f:
+            with open(stats_path, "r", encoding='utf-8') as f:
                 self.temp_stats = json.load(f)
+            print("Successfully loaded stats.json")  # Debug
         except FileNotFoundError:
-            temp_data = {"productive": {"day": 0, "week": 0, "month": 0, "total": 0}, "unproductive": {"day": 0, "week": 0, "month": 0, "total": 0}, "idle": {"day": 0, "week": 0, "month": 0, "total": 0}}
-            with open(fr'C:\monitoring tool - temp data\stats.json', 'w') as f:
-                json.dump(temp_data, f, indent=4)
-            self.temp_stats = temp_data
+            print("File not found - creating new one")  # Debug
+            self._create_default_stats(stats_path)
+        except json.JSONDecodeError as e:
+            print(f"Corrupted JSON: {e} - recreating file")  # Debug
+            self._create_default_stats(stats_path)
+        except Exception as e:
+            print(f"Unexpected error reading file: {e} - recreating")  # Debug
+            self._create_default_stats(stats_path)
         with open(self.get_file_path(), 'a', encoding='utf-8') as f:
             f.write(f"Monitoring started: {time.ctime()}\n")
+
+    def _create_default_stats(self, stats_path: Path):
+        temp_data = {
+            "productive": {"day": 0, "week": 0, "month": 0, "total": 0},
+            "unproductive": {"day": 0, "week": 0, "month": 0, "total": 0},
+            "idle": {"day": 0, "week": 0, "month": 0, "total": 0}
+        }
+        
+        try:
+            # Ensure the directory exists
+            stats_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Write with explicit encoding
+            with open(stats_path, 'w', encoding='utf-8') as f:
+                json.dump(temp_data, f, indent=4)
+            
+            print("Successfully created new stats.json")  # Debug
+            self.temp_stats = temp_data
+        except Exception as e:
+            print(f"FAILED to write stats.json: {e}")
+            # As a fallback, use defaults in memory (app can still run)
+            self.temp_stats = temp_data
     
     def log_shutdown(self):
         self._set_status("idle")
@@ -103,6 +140,13 @@ class MonitorToolUI:
         if state not in self._VALID_STATES:
             raise ValueError(f"Invalid state: {state}")
         self.productivity_status = state
+
+    def get_idle_duration(self):
+        lastInputInfo = LASTINPUTINFO()
+        lastInputInfo.cbSize = sizeof(lastInputInfo)
+        windll.user32.GetLastInputInfo(byref(lastInputInfo))
+        millis = windll.kernel32.GetTickCount64() - lastInputInfo.dwTime
+        return millis / 1000.0
 
     # Get foreground app
     def get_foreground_process_name(self):
@@ -164,12 +208,13 @@ class MonitorToolUI:
                 self.temp_stats["idle"]["month"] += (time_dif_temp/3600)
                 self.temp_stats["idle"]["total"] += (time_dif_temp/3600)
             #self.stats_label.config(text=f"Productive\nDay: {round(self.temp_stats["productive"]["day"], 2)}h\nWeek: {round(self.temp_stats["productive"]["week"], 2)}h\nMonth: {round(self.temp_stats["productive"]["month"], 2)}h\nTotal: {round(self.temp_stats["productive"]["total"], 2)}h\n\nUnproductive\nDay: {round(self.temp_stats["unproductive"]["day"], 2)}h\nWeek: {round(self.temp_stats["unproductive"]["week"], 2)}h\nMonth: {round(self.temp_stats["unproductive"]["month"], 2)}h\nTotal: {round(self.temp_stats["unproductive"]["total"], 2)}h\n\nIdle\nDay: {round(self.temp_stats["idle"]["day"], 2)}h\nWeek: {round(self.temp_stats["idle"]["week"], 2)}h\nMonth: {round(self.temp_stats["idle"]["month"], 2)}h\nTotal: {round(self.temp_stats["idle"]["total"], 2)}h")
-            self.stats_label.config(text=f"Productive\nDay: {round(self.temp_stats["productive"]["day"])}h\nWeek: {round(self.temp_stats["productive"]["week"])}h\nMonth: {round(self.temp_stats["productive"]["month"])}h\nTotal: {round(self.temp_stats["productive"]["total"], 10)}h\n\nUnproductive\nDay: {round(self.temp_stats["unproductive"]["day"])}h\nWeek: {round(self.temp_stats["unproductive"]["week"])}h\nMonth: {round(self.temp_stats["unproductive"]["month"])}h\nTotal: {round(self.temp_stats["unproductive"]["total"])}h\n\nIdle\nDay: {round(self.temp_stats["idle"]["day"])}h\nWeek: {round(self.temp_stats["idle"]["week"])}h\nMonth: {round(self.temp_stats["idle"]["month"])}h\nTotal: {round(self.temp_stats["idle"]["total"])}h")
+            self.stats_label.config(text=f"Inactive_time: {self.get_idle_duration()}\nProductive\nDay: {round(self.temp_stats["productive"]["day"], 10)}h\nWeek: {round(self.temp_stats["productive"]["week"])}h\nMonth: {round(self.temp_stats["productive"]["month"])}h\nTotal: {round(self.temp_stats["productive"]["total"])}h\n\nUnproductive\nDay: {round(self.temp_stats["unproductive"]["day"], 10)}h\nWeek: {round(self.temp_stats["unproductive"]["week"])}h\nMonth: {round(self.temp_stats["unproductive"]["month"])}h\nTotal: {round(self.temp_stats["unproductive"]["total"])}h\n\nIdle\nDay: {round(self.temp_stats["idle"]["day"], 10)}h\nWeek: {round(self.temp_stats["idle"]["week"])}h\nMonth: {round(self.temp_stats["idle"]["month"])}h\nTotal: {round(self.temp_stats["idle"]["total"])}h")
             self._last_process_update = current_time
         self.root.after(1000, self.update_stats)
 
-    def is_poe_running(self):
-        return any(proc.name() == "PathOfExile.exe" for proc in psutil.process_iter(['name'])) # Note: Added the .lower(), if it suddenly breaks, this could be why.
+    def is_game_running(self):
+        unproductive_apps = ["PathOfExile.exe", "Balls.exe"]
+        return any(proc.name() in unproductive_apps for proc in psutil.process_iter(['name']))
     
     def is_vscode_running(self):
         return any(proc.name() == "Code.exe" for proc in psutil.process_iter(['name']))
@@ -195,7 +240,7 @@ class MonitorToolUI:
         self.cpu_label.config(text=f"CPU Usage: {cpu_usage:.1f}%")
         self.update_stats()
 
-        if self.is_poe_running():
+        if self.is_game_running():
             self._set_status("unproductive")
             if not self.prev_state:
                 try:

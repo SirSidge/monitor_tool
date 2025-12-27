@@ -24,6 +24,9 @@
 5: ----- Implement AI -----
 5.1: Include AI to detect if an app (for example a new game) should be allocated to unproductive or not.
 
+6: ----- Inactive -----
+6.1: When there has been no activity on the peripherals for more than 5min (?) then change status to idle.
+
 
 ----- Misc -----
 What does the JSON file need to store?
