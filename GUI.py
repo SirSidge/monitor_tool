@@ -33,6 +33,7 @@ class MonitorToolUI:
         self.updating_processes = False
         self._last_process_update = time.time()
         self.temp_stats = {}
+        self._idle_time = False
 
         style = ttk.Style()
         style.configure("Big.TLabel", font=("Helvetica", 24))
@@ -146,7 +147,10 @@ class MonitorToolUI:
         lastInputInfo.cbSize = sizeof(lastInputInfo)
         windll.user32.GetLastInputInfo(byref(lastInputInfo))
         millis = windll.kernel32.GetTickCount64() - lastInputInfo.dwTime
-        return millis / 1000.0
+        if (millis / 1000.0) >= 300:
+            self._idle_time = True
+        else:
+            self._idle_time = False
 
     # Get foreground app
     def get_foreground_process_name(self):
@@ -191,7 +195,8 @@ class MonitorToolUI:
     def update_stats(self):
         current_time = time.time()
         time_dif_temp = current_time - self._last_process_update
-        if time_dif_temp >= 5:
+        if time_dif_temp >= 10:
+            self.get_idle_duration()
             if self.productivity_status == "productive":
                 self.temp_stats["productive"]["day"] += (time_dif_temp/3600)
                 self.temp_stats["productive"]["week"] += (time_dif_temp/3600)
@@ -207,8 +212,7 @@ class MonitorToolUI:
                 self.temp_stats["idle"]["week"] += (time_dif_temp/3600)
                 self.temp_stats["idle"]["month"] += (time_dif_temp/3600)
                 self.temp_stats["idle"]["total"] += (time_dif_temp/3600)
-            #self.stats_label.config(text=f"Productive\nDay: {round(self.temp_stats["productive"]["day"], 2)}h\nWeek: {round(self.temp_stats["productive"]["week"], 2)}h\nMonth: {round(self.temp_stats["productive"]["month"], 2)}h\nTotal: {round(self.temp_stats["productive"]["total"], 2)}h\n\nUnproductive\nDay: {round(self.temp_stats["unproductive"]["day"], 2)}h\nWeek: {round(self.temp_stats["unproductive"]["week"], 2)}h\nMonth: {round(self.temp_stats["unproductive"]["month"], 2)}h\nTotal: {round(self.temp_stats["unproductive"]["total"], 2)}h\n\nIdle\nDay: {round(self.temp_stats["idle"]["day"], 2)}h\nWeek: {round(self.temp_stats["idle"]["week"], 2)}h\nMonth: {round(self.temp_stats["idle"]["month"], 2)}h\nTotal: {round(self.temp_stats["idle"]["total"], 2)}h")
-            self.stats_label.config(text=f"Inactive_time: {self.get_idle_duration()}\nProductive\nDay: {round(self.temp_stats["productive"]["day"], 10)}h\nWeek: {round(self.temp_stats["productive"]["week"])}h\nMonth: {round(self.temp_stats["productive"]["month"])}h\nTotal: {round(self.temp_stats["productive"]["total"])}h\n\nUnproductive\nDay: {round(self.temp_stats["unproductive"]["day"], 10)}h\nWeek: {round(self.temp_stats["unproductive"]["week"])}h\nMonth: {round(self.temp_stats["unproductive"]["month"])}h\nTotal: {round(self.temp_stats["unproductive"]["total"])}h\n\nIdle\nDay: {round(self.temp_stats["idle"]["day"], 10)}h\nWeek: {round(self.temp_stats["idle"]["week"])}h\nMonth: {round(self.temp_stats["idle"]["month"])}h\nTotal: {round(self.temp_stats["idle"]["total"])}h")
+            self.stats_label.config(text=f"Productive\nDay: {round(self.temp_stats["productive"]["day"], 10)}h\nWeek: {round(self.temp_stats["productive"]["week"])}h\nMonth: {round(self.temp_stats["productive"]["month"])}h\nTotal: {round(self.temp_stats["productive"]["total"])}h\n\nUnproductive\nDay: {round(self.temp_stats["unproductive"]["day"], 10)}h\nWeek: {round(self.temp_stats["unproductive"]["week"])}h\nMonth: {round(self.temp_stats["unproductive"]["month"])}h\nTotal: {round(self.temp_stats["unproductive"]["total"])}h\n\nIdle\nDay: {round(self.temp_stats["idle"]["day"], 10)}h\nWeek: {round(self.temp_stats["idle"]["week"])}h\nMonth: {round(self.temp_stats["idle"]["month"])}h\nTotal: {round(self.temp_stats["idle"]["total"])}h")
             self._last_process_update = current_time
         self.root.after(1000, self.update_stats)
 
@@ -240,7 +244,7 @@ class MonitorToolUI:
         self.cpu_label.config(text=f"CPU Usage: {cpu_usage:.1f}%")
         self.update_stats()
 
-        if self.is_game_running():
+        if not self._idle_time and self.is_game_running():
             self._set_status("unproductive")
             if not self.prev_state:
                 try:
@@ -259,7 +263,7 @@ class MonitorToolUI:
             if elapsed_time >= 7200 and not self.alarm: #7200 seconds
                 self.timer_label.config(text="2 hours depleted")
                 self.alarm = True
-        elif self.is_vscode_running():
+        elif not self._idle_time and self.is_vscode_running():
             if self.prev_state:
                 try:
                     with open(self.get_file_path(), 'a', encoding='utf-8') as f:
