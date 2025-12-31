@@ -6,4 +6,5 @@
     python.exe -m pip install pyinstaller       # this is needed to create the .exe file
     python.exe -m PyInstaller --onefile --windowed GUI.py       # replace "GUI.py" with the 'main.py' of the codebase. This creates the .exe in the codebase under ./dist
     python.exe -m pip install psutil        # psutil is used in the code, so it also needs to be installed on windows. This needs to be done for all required packages that are used.
+    python.exe -m pip install customtkinter     # used for the customtkinter gui
 3. Using the file explorer, navigate to the .exe you just created and copy it to your desktop. This should now work.
