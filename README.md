@@ -5,6 +5,7 @@
 
 # Polish
 1: App lags heavily when you show it after a few hours. Probably a solution is to stop updating the displayed psutil window while it is minimised.
+2: To avoid duplicate apps from running, check if the app (GUI.py for now) is already running.
 
 # Features
 1: ----- Unproductive calculator ----- 
