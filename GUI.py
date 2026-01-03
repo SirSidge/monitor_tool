@@ -4,6 +4,8 @@ from PIL import Image
 import threading
 import time
 import psutil
+import ctypes
+from ctypes import wintypes, Structure, windll, c_uint, c_ulonglong, sizeof, byref
 
 class MonitorToolUI:
     def __init__(self, minimize_on_start=True):
@@ -15,8 +17,13 @@ class MonitorToolUI:
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
         self.root.grid_columnconfigure(0, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
-        self._states = ["productive", "unproductive", "idle", "testing"]
         # Variables
+        self._valid_states = {
+            "productive": {"Code.exe"},
+            "unproductive": {"PathOfExile.exe", "Balls.exe"},
+            "idle": {},
+            "testing": {}
+        }
         self.productivity_state = "testing"
         self.window_visible = True
         self.last_drawn = time.time()
@@ -45,9 +52,10 @@ class MonitorToolUI:
 
     def set_status(self, state):
         print(state)
-        if state not in self._states:
+        if state in self._valid_states.keys():
+            self.productivity_state = state
+        else:
             raise ValueError(f"Invalid state: {state}")
-        self.productivity_state = state
     
     def quit_app(self):
         self.icon.stop()
@@ -64,36 +72,52 @@ class MonitorToolUI:
     def update_taskbar_icon(self):
         self.icon.icon = self.taskbar_icons[self.productivity_state]
 
-    """def get_processes_names(self, apps):
-        return bool(apps & psutil.process_iter(['name']))"""
-    
-    def update_state(self):
-        states = {
-            "productive": {"Code.exe"},
-            "unproductive": {"PathOfExile.exe", "Balls.exe"}
-        }
-        current_processes = {p.info['name'] for p in psutil.process_iter(['name']) if p.info['name']}
-        for state in states:
-            if bool(states[state] & current_processes):
-                self.set_status(state)
+    def get_foreground_process_name(self):
+        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        if hwnd == 0:
+            return None
+        pid = wintypes.DWORD()
+        ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if pid.value == 0:
+            return None
+        try:
+            process = psutil.Process(pid.value)
+            return process.name()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            return None
+        
+    def determine_state(self):
+        foreground_app = self.get_foreground_process_name()
+        for k, v in self._valid_states.items():
+            if foreground_app in v:
+                self.set_status(k)
                 break
         else:
-            self.set_status("testing")
+            self.set_status("idle")
+
+    """def get_processes_names(self):
+        return {p.info['name'] for p in psutil.process_iter(['name']) if p.info['name']}"""
+    
+    """def update_state(self):# This should maybe not yet exist. The inside of this function could be part of "update()"
+        current_processes = self.get_processes_names()
+        for state_key in self._valid_states:
+            if bool(self._valid_states[state_key] & current_processes):
+                self.set_status(state_key)
+                break
+        else:
+            self.set_status("testing")"""
     
     def draw(self):
         current_time = time.time()
         time_since_last_draw = current_time - self.last_drawn
-        if time_since_last_draw >= 5:
+        if time_since_last_draw >= 2:
             self.stats_label.configure(text=f"{self.productivity_state}")
     
     def update(self):
         self.update_taskbar_icon()
-        self.update_state()
+        self.determine_state()
         if self.window_visible:
-            #self.set_status("productive")
             self.draw()
-        #else:
-            #self.set_status("testing")
         self.root.after(1000, self.update)
 
     def start(self):
