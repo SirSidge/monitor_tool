@@ -5,7 +5,16 @@ import threading
 import time
 import psutil
 import ctypes
-from ctypes import wintypes, Structure, windll, c_uint, c_ulonglong, sizeof, byref
+from ctypes import wintypes, Structure, windll, c_uint, sizeof, byref
+import json
+from pathlib import Path
+import os
+
+class LASTINPUTINFO(Structure):
+    _fields_ = [
+        ('cbSize', c_uint),
+        ('dwTime', c_uint),
+    ]
 
 class MonitorToolUI:
     def __init__(self, minimize_on_start=True):
@@ -27,6 +36,34 @@ class MonitorToolUI:
         self.productivity_state = "testing"
         self.window_visible = True
         self.last_drawn = time.time()
+        self.inactive = False
+        self.file_path = Path(r'C:\monitoring tool - temp data\running_data.json')
+        self.running_data = {
+            "day": {
+                "productive": 0,
+                "unproductive": 0,
+                "idle": 0,
+                "testing": 0
+            },
+            "month": {
+                "productive": 0,
+                "unproductive": 0,
+                "idle": 0,
+                "testing": 0
+            },
+            "year": {
+                "productive": 0,
+                "unproductive": 0,
+                "idle": 0,
+                "testing": 0
+            },
+            "total": {
+                "productive": 0,
+                "unproductive": 0,
+                "idle": 0,
+                "testing": 0
+            }
+        }
         # Taskbar Icon
         self.icon = Icon("my_app")
         self.taskbar_icons = {
@@ -49,11 +86,15 @@ class MonitorToolUI:
         self.stats_label.grid(row=0, column=0, padx=10, pady=10)
         self.processes_button = ctk.CTkButton(self.frame, text="Quit", command=self.quit_app)
         self.processes_button.grid(row=1, column=0, padx=10, pady=10)
+        # Minimize on Start (Note: Needs to stay at end of __init__ to avoid interrupting the building of the app.)
+        if minimize_on_start:
+            self.root.after(2000, self.hide_window)
 
     def set_status(self, state):
         print(state)
         if state in self._valid_states.keys():
             self.productivity_state = state
+            self.update_taskbar_icon()
         else:
             raise ValueError(f"Invalid state: {state}")
     
@@ -68,6 +109,17 @@ class MonitorToolUI:
     def hide_window(self):
         self.root.withdraw()
         self.window_visible = False
+
+    def open_file(self):
+        if not os.path.exists(self.file_path):
+            print("File not found, creating new file...")
+            obj_json = json.dumps(self.running_data, indent=4)
+            with open(self.file_path, 'w') as f:
+                f.write(obj_json)
+            return
+        print("File opening...")
+        with open(self.file_path, "r", encoding='utf-8') as f:
+            self.running_data = json.load(f)
 
     def update_taskbar_icon(self):
         self.icon.icon = self.taskbar_icons[self.productivity_state]
@@ -87,26 +139,27 @@ class MonitorToolUI:
             return None
         
     def determine_state(self):
-        foreground_app = self.get_foreground_process_name()
-        for k, v in self._valid_states.items():
-            if foreground_app in v:
-                self.set_status(k)
-                break
+        if not self.inactive:
+            foreground_app = self.get_foreground_process_name()
+            for k, v in self._valid_states.items():
+                if foreground_app in v:
+                    self.set_status(k)
+                    break
+            else:
+                self.set_status("idle")
         else:
             self.set_status("idle")
 
-    """def get_processes_names(self):
-        return {p.info['name'] for p in psutil.process_iter(['name']) if p.info['name']}"""
-    
-    """def update_state(self):# This should maybe not yet exist. The inside of this function could be part of "update()"
-        current_processes = self.get_processes_names()
-        for state_key in self._valid_states:
-            if bool(self._valid_states[state_key] & current_processes):
-                self.set_status(state_key)
-                break
+    def get_idle_duration(self):
+        lastInputInfo = LASTINPUTINFO()
+        lastInputInfo.cbSize = sizeof(lastInputInfo)
+        windll.user32.GetLastInputInfo(byref(lastInputInfo))
+        sec = (windll.kernel32.GetTickCount64() - lastInputInfo.dwTime) / 1000
+        if sec >= 300:
+            self.inactive = True
         else:
-            self.set_status("testing")"""
-    
+            self.inactive = False
+
     def draw(self):
         current_time = time.time()
         time_since_last_draw = current_time - self.last_drawn
@@ -114,7 +167,7 @@ class MonitorToolUI:
             self.stats_label.configure(text=f"{self.productivity_state}")
     
     def update(self):
-        self.update_taskbar_icon()
+        self.get_idle_duration()
         self.determine_state()
         if self.window_visible:
             self.draw()
@@ -123,8 +176,9 @@ class MonitorToolUI:
     def start(self):
         print("Starting...")
         self.root.after(100, self.update)
+        self.root.after(100, self.open_file)
         self.root.mainloop()
 
 if __name__ == "__main__":
-    app = MonitorToolUI(minimize_on_start=True)
+    app = MonitorToolUI(minimize_on_start=False)
     app.start()
