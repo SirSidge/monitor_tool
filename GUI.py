@@ -36,6 +36,7 @@ class MonitorToolUI:
         self.productivity_state = "testing"
         self.window_visible = True
         self.last_drawn = time.time()
+        self.last_stat_update = time.time()
         self.inactive = False
         self.file_path = Path(r'C:\monitoring tool - temp data\running_data.json')
         self.running_data = {
@@ -46,12 +47,6 @@ class MonitorToolUI:
                 "testing": 0
             },
             "month": {
-                "productive": 0,
-                "unproductive": 0,
-                "idle": 0,
-                "testing": 0
-            },
-            "year": {
                 "productive": 0,
                 "unproductive": 0,
                 "idle": 0,
@@ -92,13 +87,28 @@ class MonitorToolUI:
 
     def set_status(self, state):
         print(state)
-        if state in self._valid_states.keys():
-            self.productivity_state = state
-            self.update_taskbar_icon()
+        if self.productivity_state == state:
+            current_time = time.time()
+            self.running_data["day"][self.productivity_state] += current_time - self.last_stat_update
+            self.running_data["month"][self.productivity_state] += current_time - self.last_stat_update
+            self.running_data["total"][self.productivity_state] += current_time - self.last_stat_update
+            self.last_stat_update = current_time
         else:
-            raise ValueError(f"Invalid state: {state}")
+            if state in self._valid_states.keys():
+                self.productivity_state = state
+                self.update_taskbar_icon()
+            else:
+                raise ValueError(f"Invalid state: {state}")
+        
+    def auto_update_stats(self):
+        print("Saving...")
+        obj_json = json.dumps(self.running_data, indent=4)
+        with open(self.file_path, 'w') as f:
+            f.write(obj_json)
+        self.root.after(20000, self.auto_update_stats)
     
     def quit_app(self):
+        self.save_to_file()
         self.icon.stop()
         self.root.destroy()
 
@@ -120,6 +130,11 @@ class MonitorToolUI:
         print("File opening...")
         with open(self.file_path, "r", encoding='utf-8') as f:
             self.running_data = json.load(f)
+
+    def save_to_file(self):
+        obj_json = json.dumps(self.running_data, indent=4)
+        with open(self.file_path, 'w') as f:
+            f.write(obj_json)
 
     def update_taskbar_icon(self):
         self.icon.icon = self.taskbar_icons[self.productivity_state]
@@ -177,6 +192,7 @@ class MonitorToolUI:
         print("Starting...")
         self.root.after(100, self.update)
         self.root.after(100, self.open_file)
+        self.root.after(20000, self.auto_update_stats)
         self.root.mainloop()
 
 if __name__ == "__main__":
