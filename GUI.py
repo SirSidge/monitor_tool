@@ -31,11 +31,9 @@ class MonitorToolUI:
             "productive": {"Code.exe"},
             "unproductive": {"PathOfExile.exe", "Balls.exe"},
             "idle": {},
-            "testing": {}
         }
-        self.productivity_state = "testing"
+        self.productivity_state = "idle"
         self.window_visible = True
-        self.last_drawn = time.time()
         self.last_stat_update = time.time()
         self.inactive = False
         self.file_path = Path(r'C:\monitoring tool - temp data\running_data.json')
@@ -43,26 +41,29 @@ class MonitorToolUI:
             "day": {
                 "productive": 0,
                 "unproductive": 0,
-                "idle": 0,
-                "testing": 0
+                "idle": 0
+            },
+            "week": {
+                "productive": 0,
+                "unproductive": 0,
+                "idle": 0
             },
             "month": {
                 "productive": 0,
                 "unproductive": 0,
-                "idle": 0,
-                "testing": 0
+                "idle": 0
             },
             "total": {
                 "productive": 0,
                 "unproductive": 0,
-                "idle": 0,
-                "testing": 0
+                "idle": 0
             }
         }
+        #self.last_active = datetime.now().date()
+        #self.last_date = time.strftime("%m-%d", time.localtime(time.time()))
         # Taskbar Icon
         self.icon = Icon("my_app")
         self.taskbar_icons = {
-            "testing": Image.new('RGB', (64, 64), color = 'blue'),
             "idle": Image.new('RGB', (64, 64), color = 'black'),
             "productive": Image.new('RGB', (64, 64), color = 'green'),
             "unproductive": Image.new('RGB', (64, 64), color = 'red'),
@@ -81,6 +82,14 @@ class MonitorToolUI:
         self.stats_label.grid(row=0, column=0, padx=10, pady=10)
         self.processes_button = ctk.CTkButton(self.frame, text="Quit", command=self.quit_app)
         self.processes_button.grid(row=1, column=0, padx=10, pady=10)
+        self.stats_day = ctk.CTkLabel(self.frame, text="-- initialising --")
+        self.stats_day.grid(row=0, column=1, padx=10, pady=10)
+        self.stats_week = ctk.CTkLabel(self.frame, text="-- initialising --")
+        self.stats_week.grid(row=0, column=2, padx=10, pady=10)
+        self.stats_month = ctk.CTkLabel(self.frame, text="-- initialising --")
+        self.stats_month.grid(row=0, column=3, padx=10, pady=10)
+        self.stats_total = ctk.CTkLabel(self.frame, text="-- initialising --")
+        self.stats_total.grid(row=0, column=4, padx=10, pady=10)
         # Minimize on Start (Note: Needs to stay at end of __init__ to avoid interrupting the building of the app.)
         if minimize_on_start:
             self.root.after(2000, self.hide_window)
@@ -90,6 +99,7 @@ class MonitorToolUI:
         if self.productivity_state == state:
             current_time = time.time()
             self.running_data["day"][self.productivity_state] += current_time - self.last_stat_update
+            self.running_data["week"][self.productivity_state] += current_time - self.last_stat_update
             self.running_data["month"][self.productivity_state] += current_time - self.last_stat_update
             self.running_data["total"][self.productivity_state] += current_time - self.last_stat_update
             self.last_stat_update = current_time
@@ -176,16 +186,37 @@ class MonitorToolUI:
             self.inactive = False
 
     def draw(self):
-        current_time = time.time()
-        time_since_last_draw = current_time - self.last_drawn
-        if time_since_last_draw >= 2:
+        if self.window_visible:
             self.stats_label.configure(text=f"{self.productivity_state}")
+            self.stats_day.configure(text=f"""
+Day
+Productive: {time.strftime("%H:%M:%S", time.gmtime(self.running_data["day"]["productive"]))}
+Unproductive: {time.strftime("%H:%M:%S", time.gmtime(self.running_data["day"]["unproductive"]))}
+Idle: {time.strftime("%H:%M:%S", time.gmtime(self.running_data["day"]["idle"]))}""")
+        self.root.after(1000, self.draw)
+    
+    def draw_infrequent(self):
+        if self.window_visible:
+            self.stats_week.configure(text=f"""
+Week
+Productive: {round(self.running_data["week"]["productive"] // 3600)}
+Unproductive: {round(self.running_data["week"]["unproductive"] // 3600)}
+Idle: {round(self.running_data["week"]["idle"] // 3600)}""")
+            self.stats_month.configure(text=f"""
+Month
+Productive: {round(self.running_data["month"]["productive"] // 3600)}
+Unproductive: {round(self.running_data["month"]["unproductive"] // 3600)}
+Idle: {round(self.running_data["month"]["idle"] // 3600)}""")
+            self.stats_total.configure(text=f"""
+Total
+Productive: {round(self.running_data["total"]["productive"] // 3600)}
+Unproductive: {round(self.running_data["total"]["unproductive"] // 3600)}
+Idle: {round(self.running_data["total"]["idle"] // 3600)}""")
+        self.root.after(60000, self.draw_infrequent)
     
     def update(self):
         self.get_idle_duration()
         self.determine_state()
-        if self.window_visible:
-            self.draw()
         self.root.after(1000, self.update)
 
     def start(self):
@@ -193,6 +224,8 @@ class MonitorToolUI:
         self.root.after(100, self.update)
         self.root.after(100, self.open_file)
         self.root.after(20000, self.auto_update_stats)
+        self.root.after(1000, self.draw)
+        self.root.after(1000, self.draw_infrequent)
         self.root.mainloop()
 
 if __name__ == "__main__":
