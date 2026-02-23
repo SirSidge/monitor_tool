@@ -53,3 +53,6 @@
         - Running totals: daily, weekly, monthly, and total
         - Time in statuses: Productive, Unproductive, Idle
         - What date and time events occured
+
+
+https://x.com/i/grok/share/e4c8ef87b09b44a1b645338f9d30628f
