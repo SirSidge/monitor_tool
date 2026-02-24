@@ -3,6 +3,7 @@ from pystray import MenuItem, Icon, Menu
 from PIL import Image
 import threading
 import time
+from datetime import date
 import psutil
 import ctypes
 from ctypes import wintypes, Structure, windll, c_uint, sizeof, byref
@@ -38,27 +39,33 @@ class MonitorToolUI:
         self.inactive = False
         self.file_path = Path(r'C:\monitoring tool - temp data\running_data.json')
         self.running_data = {
-            "day": {
-                "productive": 0,
-                "unproductive": 0,
-                "idle": 0
+            "metadata": {
+                "last_active_date": date.today().isoformat()
             },
-            "week": {
-                "productive": 0,
-                "unproductive": 0,
-                "idle": 0
-            },
-            "month": {
-                "productive": 0,
-                "unproductive": 0,
-                "idle": 0
-            },
-            "total": {
-                "productive": 0,
-                "unproductive": 0,
-                "idle": 0
+            "stats": {
+                "day": {
+                    "productive": 0,
+                    "unproductive": 0,
+                    "idle": 0
+                },
+                "week": {
+                    "productive": 0,
+                    "unproductive": 0,
+                    "idle": 0
+                },
+                "month": {
+                    "productive": 0,
+                    "unproductive": 0,
+                    "idle": 0
+                },
+                "total": {
+                    "productive": 0,
+                    "unproductive": 0,
+                    "idle": 0
+                }
             }
         }
+        self.last_active = date.today()
         #self.last_active = datetime.now().date()
         #self.last_date = time.strftime("%m-%d", time.localtime(time.time()))
         # Taskbar Icon
@@ -98,10 +105,10 @@ class MonitorToolUI:
         print(state)
         if self.productivity_state == state:
             current_time = time.time()
-            self.running_data["day"][self.productivity_state] += current_time - self.last_stat_update
-            self.running_data["week"][self.productivity_state] += current_time - self.last_stat_update
-            self.running_data["month"][self.productivity_state] += current_time - self.last_stat_update
-            self.running_data["total"][self.productivity_state] += current_time - self.last_stat_update
+            self.running_data["stats"]["day"][self.productivity_state] += current_time - self.last_stat_update
+            self.running_data["stats"]["week"][self.productivity_state] += current_time - self.last_stat_update
+            self.running_data["stats"]["month"][self.productivity_state] += current_time - self.last_stat_update
+            self.running_data["stats"]["total"][self.productivity_state] += current_time - self.last_stat_update
             self.last_stat_update = current_time
         else:
             if state in self._valid_states.keys():
@@ -133,13 +140,14 @@ class MonitorToolUI:
     def open_file(self):
         if not os.path.exists(self.file_path):
             print("File not found, creating new file...")
-            obj_json = json.dumps(self.running_data, indent=4)
-            with open(self.file_path, 'w') as f:
-                f.write(obj_json)
+            self.save_to_file()
             return
         print("File opening...")
         with open(self.file_path, "r", encoding='utf-8') as f:
             self.running_data = json.load(f)
+            if "metadata" not in self.running_data:
+                self.running_data["metadata"] = {"last_active_date": date.today().isoformat()}
+            self.last_active = date.fromisoformat(self.running_data["metadata"].get("last_active_date"))
 
     def save_to_file(self):
         obj_json = json.dumps(self.running_data, indent=4)
@@ -184,37 +192,43 @@ class MonitorToolUI:
             self.inactive = True
         else:
             self.inactive = False
+    
+    def check_date(self):
+        print("checking if is today:")
+        if self.last_active.day == date.today().day:
+            print("Yes it is today.")
 
     def draw(self):
         if self.window_visible:
             self.stats_label.configure(text=f"{self.productivity_state}")
             self.stats_day.configure(text=f"""
 Day
-Productive: {time.strftime("%H:%M:%S", time.gmtime(self.running_data["day"]["productive"]))}
-Unproductive: {time.strftime("%H:%M:%S", time.gmtime(self.running_data["day"]["unproductive"]))}
-Idle: {time.strftime("%H:%M:%S", time.gmtime(self.running_data["day"]["idle"]))}""")
+Productive: {time.strftime("%H:%M:%S", time.gmtime(self.running_data["stats"]["day"]["productive"]))}
+Unproductive: {time.strftime("%H:%M:%S", time.gmtime(self.running_data["stats"]["day"]["unproductive"]))}
+Idle: {time.strftime("%H:%M:%S", time.gmtime(self.running_data["stats"]["day"]["idle"]))}""")
         self.root.after(1000, self.draw)
     
     def draw_infrequent(self):
         if self.window_visible:
             self.stats_week.configure(text=f"""
 Week
-Productive: {round(self.running_data["week"]["productive"] // 3600)}
-Unproductive: {round(self.running_data["week"]["unproductive"] // 3600)}
-Idle: {round(self.running_data["week"]["idle"] // 3600)}""")
+Productive: {round(self.running_data["stats"]["week"]["productive"] // 3600)}
+Unproductive: {round(self.running_data["stats"]["week"]["unproductive"] // 3600)}
+Idle: {round(self.running_data["stats"]["week"]["idle"] // 3600)}""")
             self.stats_month.configure(text=f"""
 Month
-Productive: {round(self.running_data["month"]["productive"] // 3600)}
-Unproductive: {round(self.running_data["month"]["unproductive"] // 3600)}
-Idle: {round(self.running_data["month"]["idle"] // 3600)}""")
+Productive: {round(self.running_data["stats"]["month"]["productive"] // 3600)}
+Unproductive: {round(self.running_data["stats"]["month"]["unproductive"] // 3600)}
+Idle: {round(self.running_data["stats"]["month"]["idle"] // 3600)}""")
             self.stats_total.configure(text=f"""
 Total
-Productive: {round(self.running_data["total"]["productive"] // 3600)}
-Unproductive: {round(self.running_data["total"]["unproductive"] // 3600)}
-Idle: {round(self.running_data["total"]["idle"] // 3600)}""")
+Productive: {round(self.running_data["stats"]["total"]["productive"] // 3600)}
+Unproductive: {round(self.running_data["stats"]["total"]["unproductive"] // 3600)}
+Idle: {round(self.running_data["stats"]["total"]["idle"] // 3600)}""")
         self.root.after(60000, self.draw_infrequent)
     
     def update(self):
+        self.check_date()
         self.get_idle_duration()
         self.determine_state()
         self.root.after(1000, self.update)
