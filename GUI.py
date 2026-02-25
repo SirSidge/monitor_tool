@@ -48,11 +48,6 @@ class MonitorToolUI:
                     "unproductive": 0,
                     "idle": 0
                 },
-                "week": {
-                    "productive": 0,
-                    "unproductive": 0,
-                    "idle": 0
-                },
                 "month": {
                     "productive": 0,
                     "unproductive": 0,
@@ -91,8 +86,6 @@ class MonitorToolUI:
         self.processes_button.grid(row=1, column=0, padx=10, pady=10)
         self.stats_day = ctk.CTkLabel(self.frame, text="-- initialising --")
         self.stats_day.grid(row=0, column=1, padx=10, pady=10)
-        self.stats_week = ctk.CTkLabel(self.frame, text="-- initialising --")
-        self.stats_week.grid(row=0, column=2, padx=10, pady=10)
         self.stats_month = ctk.CTkLabel(self.frame, text="-- initialising --")
         self.stats_month.grid(row=0, column=3, padx=10, pady=10)
         self.stats_total = ctk.CTkLabel(self.frame, text="-- initialising --")
@@ -106,7 +99,6 @@ class MonitorToolUI:
         if self.productivity_state == state:
             current_time = time.time()
             self.running_data["stats"]["day"][self.productivity_state] += current_time - self.last_stat_update
-            self.running_data["stats"]["week"][self.productivity_state] += current_time - self.last_stat_update
             self.running_data["stats"]["month"][self.productivity_state] += current_time - self.last_stat_update
             self.running_data["stats"]["total"][self.productivity_state] += current_time - self.last_stat_update
             self.last_stat_update = current_time
@@ -147,7 +139,7 @@ class MonitorToolUI:
             self.running_data = json.load(f)
             if "metadata" not in self.running_data:
                 self.running_data["metadata"] = {"last_active_date": date.today().isoformat()}
-            self.last_active = date.fromisoformat(self.running_data["metadata"].get("last_active_date"))
+            #self.last_active = date.fromisoformat(self.running_data["metadata"].get("last_active_date"))
 
     def save_to_file(self):
         obj_json = json.dumps(self.running_data, indent=4)
@@ -195,8 +187,20 @@ class MonitorToolUI:
     
     def check_date(self):
         print("checking if is today:")
-        if self.last_active.day == date.today().day:
-            print("Yes it is today.")
+        if self.running_data["metadata"]["last_active_date"] == date.today().isoformat():
+            print("It is today")
+        else:
+            self.running_data["stats"]["day"]["productive"] = 0
+            self.running_data["stats"]["day"]["unproductive"] = 0
+            self.running_data["stats"]["day"]["idle"] = 0
+            if date.fromisoformat(self.running_data["metadata"]["last_active_date"]).month != date.today().month:
+                self.running_data["stats"]["month"]["productive"] = 0
+                self.running_data["stats"]["month"]["unproductive"] = 0
+                self.running_data["stats"]["month"]["idle"] = 0
+                print(f"It is not the correct month, it is {self.running_data["metadata"]["last_active_date"]}")
+            self.running_data["metadata"]["last_active_date"] = date.today().isoformat()
+            self.draw_infrequent()
+        self.root.after(1500, self.check_date)
 
     def draw(self):
         if self.window_visible:
@@ -210,11 +214,6 @@ Idle: {time.strftime("%H:%M:%S", time.gmtime(self.running_data["stats"]["day"]["
     
     def draw_infrequent(self):
         if self.window_visible:
-            self.stats_week.configure(text=f"""
-Week
-Productive: {round(self.running_data["stats"]["week"]["productive"] // 3600)}
-Unproductive: {round(self.running_data["stats"]["week"]["unproductive"] // 3600)}
-Idle: {round(self.running_data["stats"]["week"]["idle"] // 3600)}""")
             self.stats_month.configure(text=f"""
 Month
 Productive: {round(self.running_data["stats"]["month"]["productive"] // 3600)}
@@ -228,7 +227,6 @@ Idle: {round(self.running_data["stats"]["total"]["idle"] // 3600)}""")
         self.root.after(60000, self.draw_infrequent)
     
     def update(self):
-        self.check_date()
         self.get_idle_duration()
         self.determine_state()
         self.root.after(1000, self.update)
@@ -240,6 +238,7 @@ Idle: {round(self.running_data["stats"]["total"]["idle"] // 3600)}""")
         self.root.after(20000, self.auto_update_stats)
         self.root.after(1000, self.draw)
         self.root.after(1000, self.draw_infrequent)
+        self.root.after(1500, self.check_date)
         self.root.mainloop()
 
 if __name__ == "__main__":
