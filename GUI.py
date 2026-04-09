@@ -61,9 +61,6 @@ class MonitorToolUI:
             }
         }
         self.last_active = date.today()
-        #self.last_active = datetime.now().date()
-        #self.last_date = time.strftime("%m-%d", time.localtime(time.time()))
-        # Taskbar Icon
         self.icon = Icon("my_app")
         self.taskbar_icons = {
             "idle": Image.new('RGB', (64, 64), color = 'black'),
@@ -96,18 +93,16 @@ class MonitorToolUI:
 
     def set_status(self, state):
         print(state)
-        if self.productivity_state == state:
+        if state in self._valid_states.keys():
             current_time = time.time()
             self.running_data["stats"]["day"][self.productivity_state] += current_time - self.last_stat_update
             self.running_data["stats"]["month"][self.productivity_state] += current_time - self.last_stat_update
             self.running_data["stats"]["total"][self.productivity_state] += current_time - self.last_stat_update
             self.last_stat_update = current_time
+            self.productivity_state = state
+            self.update_taskbar_icon()
         else:
-            if state in self._valid_states.keys():
-                self.productivity_state = state
-                self.update_taskbar_icon()
-            else:
-                raise ValueError(f"Invalid state: {state}")
+            raise ValueError(f"Invalid state: {state}")
         
     def auto_update_stats(self):
         print("Saving...")
@@ -124,6 +119,8 @@ class MonitorToolUI:
     def show_window(self):
         self.root.deiconify()
         self.window_visible = True
+        self.draw()
+        self.draw_infrequent()
 
     def hide_window(self):
         self.root.withdraw()
@@ -139,7 +136,6 @@ class MonitorToolUI:
             self.running_data = json.load(f)
             if "metadata" not in self.running_data:
                 self.running_data["metadata"] = {"last_active_date": date.today().isoformat()}
-            #self.last_active = date.fromisoformat(self.running_data["metadata"].get("last_active_date"))
 
     def save_to_file(self):
         obj_json = json.dumps(self.running_data, indent=4)
@@ -186,18 +182,15 @@ class MonitorToolUI:
             self.inactive = False
     
     def check_date(self):
-        print("checking if is today:")
-        if self.running_data["metadata"]["last_active_date"] == date.today().isoformat():
-            print("It is today")
-        else:
+        if date.fromisoformat(self.running_data["metadata"]["last_active_date"]).month != date.today().month:
+            self.running_data["stats"]["month"]["productive"] = 0
+            self.running_data["stats"]["month"]["unproductive"] = 0
+            self.running_data["stats"]["month"]["idle"] = 0
+            self.draw_infrequent()
+        if self.running_data["metadata"]["last_active_date"] != date.today().isoformat():
             self.running_data["stats"]["day"]["productive"] = 0
             self.running_data["stats"]["day"]["unproductive"] = 0
             self.running_data["stats"]["day"]["idle"] = 0
-            if date.fromisoformat(self.running_data["metadata"]["last_active_date"]).month != date.today().month:
-                self.running_data["stats"]["month"]["productive"] = 0
-                self.running_data["stats"]["month"]["unproductive"] = 0
-                self.running_data["stats"]["month"]["idle"] = 0
-                print(f"It is not the correct month, it is {self.running_data["metadata"]["last_active_date"]}")
             self.running_data["metadata"]["last_active_date"] = date.today().isoformat()
             self.draw_infrequent()
         self.root.after(1500, self.check_date)
