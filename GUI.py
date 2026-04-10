@@ -74,19 +74,23 @@ class MonitorToolUI:
         )
         self.icon_thread = threading.Thread(target=self.icon.run, daemon=True)
         self.icon_thread.start()
+        self.process_labels = []
         # Frame and widgets
         self.frame = ctk.CTkFrame(self.root, fg_color="gray20", corner_radius=10)
         self.frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
         self.stats_label = ctk.CTkLabel(self.frame, text="-- initialising --")
         self.stats_label.grid(row=0, column=0, padx=10, pady=10)
-        self.processes_button = ctk.CTkButton(self.frame, text="Quit", command=self.quit_app)
-        self.processes_button.grid(row=1, column=0, padx=10, pady=10)
+        self.quit_button = ctk.CTkButton(self.frame, text="Quit", command=self.quit_app)
+        self.quit_button.grid(row=1, column=0, padx=10, pady=10)
         self.stats_day = ctk.CTkLabel(self.frame, text="-- initialising --")
         self.stats_day.grid(row=0, column=1, padx=10, pady=10)
         self.stats_month = ctk.CTkLabel(self.frame, text="-- initialising --")
         self.stats_month.grid(row=0, column=3, padx=10, pady=10)
         self.stats_total = ctk.CTkLabel(self.frame, text="-- initialising --")
         self.stats_total.grid(row=0, column=4, padx=10, pady=10)
+        self.processes_list = ctk.CTkScrollableFrame(self.root, width=200, height=300, label_text="Running Processes")
+        self.processes_list.grid(row=1, column=0, padx=10, pady=10, sticky="n")
+        self.processes_list.configure(label_text="Current Processes")
         # Minimize on Start (Note: Needs to stay at end of __init__ to avoid interrupting the building of the app.)
         if minimize_on_start:
             self.root.after(2000, self.hide_window)
@@ -159,6 +163,29 @@ class MonitorToolUI:
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             return None
         
+    def get_processes_list(self):
+        for widget in self.processes_list.winfo_children():
+            widget.destroy()
+        
+        # Or more precisely (recommended):
+        # for widget in self.processes_list.scrollable_frame.winfo_children():
+        #     widget.destroy()
+
+        process_names = sorted({p.name() for p in psutil.process_iter(['name']) if p.name()})
+        for i, name in enumerate(process_names):
+            label = ctk.CTkLabel(
+                self.processes_list,
+                text=name,
+                anchor="w",
+                justify="left",
+                padx=10,
+                pady=2
+            )
+            label.grid(row=i, column=0, sticky="w", padx=10, pady=1)
+        self.processes_list.update_idletasks()
+        self.processes_list._parent_canvas.yview_moveto(0.0)
+        self.root.after(10000, self.get_processes_list)
+
     def determine_state(self):
         if not self.inactive:
             foreground_app = self.get_foreground_process_name()
@@ -232,6 +259,7 @@ Idle: {round(self.running_data["stats"]["total"]["idle"] // 3600)}""")
         self.root.after(1000, self.draw)
         self.root.after(1000, self.draw_infrequent)
         self.root.after(1500, self.check_date)
+        self.root.after(1750, self.get_processes_list)
         self.root.mainloop()
 
 if __name__ == "__main__":
