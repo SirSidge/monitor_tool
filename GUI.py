@@ -31,7 +31,7 @@ class MonitorToolUI:
         self._valid_states = {
             "productive": {"Code.exe"},
             "unproductive": {"PathOfExile.exe", "Balls.exe"},
-            "idle": {},
+            "idle": set(),
         }
         self.productivity_state = "idle"
         self.window_visible = True
@@ -91,6 +91,8 @@ class MonitorToolUI:
         self.processes_list = ctk.CTkScrollableFrame(self.root, width=200, height=300, label_text="Running Processes")
         self.processes_list.grid(row=1, column=0, padx=10, pady=10, sticky="n")
         self.processes_list.configure(label_text="Current Processes")
+        self.states_processes = ctk.CTkLabel(self.root, text="-- initialising --")
+        self.states_processes.grid(row=1, column=1)
         # Minimize on Start (Note: Needs to stay at end of __init__ to avoid interrupting the building of the app.)
         if minimize_on_start:
             self.root.after(2000, self.hide_window)
@@ -164,27 +166,48 @@ class MonitorToolUI:
             return None
         
     def get_processes_list(self):
+        if hasattr(self.processes_list, '_parent_canvas'):
+            scroll_pos = self.processes_list._parent_canvas.yview()[0]
+        else:
+            scroll_pos = 0.0
         for widget in self.processes_list.winfo_children():
             widget.destroy()
-        
-        # Or more precisely (recommended):
-        # for widget in self.processes_list.scrollable_frame.winfo_children():
-        #     widget.destroy()
-
         process_names = sorted({p.name() for p in psutil.process_iter(['name']) if p.name()})
         for i, name in enumerate(process_names):
-            label = ctk.CTkLabel(
+            proc = ctk.CTkButton(
                 self.processes_list,
                 text=name,
                 anchor="w",
-                justify="left",
-                padx=10,
-                pady=2
+                command=lambda name=name: self.proc_button_event(name),
+                fg_color="transparent",
+                hover_color="#2A2A2A",
             )
-            label.grid(row=i, column=0, sticky="w", padx=10, pady=1)
+            proc.grid(row=i, column=0, sticky="w", padx=10, pady=1)
         self.processes_list.update_idletasks()
-        self.processes_list._parent_canvas.yview_moveto(0.0)
+        self.processes_list._parent_canvas.yview_moveto(scroll_pos)
         self.root.after(10000, self.get_processes_list)
+    
+    def proc_button_event(self, proc_name):
+        print("Processes selected:", proc_name)
+        pop_up_window = ctk.CTkToplevel(self.processes_list)
+        self.current_popup = pop_up_window
+        pop_up_window.title("Add App")
+        pop_up_window.geometry("200x200")
+        pop_up_window.grab_set()
+        idle_btn = ctk.CTkButton(pop_up_window, text="Idle", command=lambda btn="idle", name=proc_name: self.add_proc(btn, name))
+        prod_btn = ctk.CTkButton(pop_up_window, text="Productive", command=lambda btn="productive", name=proc_name: self.add_proc(btn, name))
+        unprod_btn = ctk.CTkButton(pop_up_window, text="Unproductive", command=lambda btn="unproductive", name=proc_name: self.add_proc(btn, name))
+        cancel_btn = ctk.CTkButton(pop_up_window, text="Cancel", command=pop_up_window.destroy)
+        idle_btn.grid(row=0, column=0, padx=20, pady=4, sticky="ew")
+        prod_btn.grid(row=1, column=0, padx=20, pady=4, sticky="ew")
+        unprod_btn.grid(row=2, column=0, padx=20, pady=4, sticky="ew")
+        cancel_btn.grid(row=3, column=0, padx=20, pady=8, sticky="ew")
+        self.draw()
+    
+    def add_proc(self, btn, proc):
+        self._valid_states[btn].add(proc)
+        if hasattr(self, 'current_popup'):
+            self.current_popup.destroy()
 
     def determine_state(self):
         if not self.inactive:
@@ -239,11 +262,21 @@ Month
 Productive: {round(self.running_data["stats"]["month"]["productive"] // 3600)}
 Unproductive: {round(self.running_data["stats"]["month"]["unproductive"] // 3600)}
 Idle: {round(self.running_data["stats"]["month"]["idle"] // 3600)}""")
+            
             self.stats_total.configure(text=f"""
 Total
 Productive: {round(self.running_data["stats"]["total"]["productive"] // 3600)}
 Unproductive: {round(self.running_data["stats"]["total"]["unproductive"] // 3600)}
 Idle: {round(self.running_data["stats"]["total"]["idle"] // 3600)}""")
+            
+            idle_list = ", ".join(sorted(self._valid_states["idle"])) or "None"
+            prod_list = ", ".join(sorted(self._valid_states["productive"])) or "None"
+            unprod_list = ", ".join(sorted(self._valid_states["unproductive"])) or "None"
+            self.states_processes.configure(text=f"""
+Idle: {idle_list}
+Productive: {prod_list}
+Unproductive: {unprod_list}
+""")
         self.root.after(60000, self.draw_infrequent)
     
     def update(self):
