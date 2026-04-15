@@ -193,12 +193,6 @@ class MonitorToolUI:
         self.processes_list._parent_canvas.yview_moveto(scroll_pos)
         self.root.after(10000, self.get_processes_list)
 
-    """def get_states_processes(self):
-        for state, processes in self._valid_states.items():
-            for process in processes:
-                if state == "idle":
-                    self.idle_processes"""
-    
     def proc_button_event(self, proc_name):
         pop_up_window = ctk.CTkToplevel(self.root)
         self.current_popup = pop_up_window
@@ -213,6 +207,71 @@ class MonitorToolUI:
         prod_btn.grid(row=1, column=0, padx=20, pady=4, sticky="ew")
         unprod_btn.grid(row=2, column=0, padx=20, pady=4, sticky="ew")
         cancel_btn.grid(row=3, column=0, padx=20, pady=8, sticky="ew")
+
+    def get_states_processes(self):
+        for widget in self.idle_processes.winfo_children():
+            widget.destroy()
+        for widget in self.productive_processes.winfo_children():
+            widget.destroy()
+        for widget in self.unproductive_processes.winfo_children():
+            widget.destroy()
+        for state, processes in self._valid_states.items():
+            for i, process in enumerate(processes):
+                if state == "idle":
+                    proc_btn = ctk.CTkButton(
+                        self.idle_processes,
+                        text=process,
+                        anchor="w",
+                        command=lambda state=state, name=process: self.proc_state_btn_event(state, name),
+                        fg_color="transparent",
+                        hover_color="#2A2A2A",
+                    )
+                    proc_btn.grid(row=i, column=0, sticky="w", padx=10, pady=1)
+                elif state == "productive":
+                    proc_btn = ctk.CTkButton(
+                        self.productive_processes,
+                        text=process,
+                        anchor="w",
+                        command=lambda state=state, name=process: self.proc_state_btn_event(state, name),
+                        fg_color="transparent",
+                        hover_color="#2A2A2A",
+                    )
+                    proc_btn.grid(row=i, column=0, sticky="w", padx=10, pady=1)
+                elif state == "unproductive":
+                    proc_btn = ctk.CTkButton(
+                        self.unproductive_processes,
+                        text=process,
+                        anchor="w",
+                        command=lambda state=state, name=process: self.proc_state_btn_event(state, name),
+                        fg_color="transparent",
+                        hover_color="#2A2A2A",
+                    )
+                    proc_btn.grid(row=i, column=0, sticky="w", padx=10, pady=1)
+        self.idle_processes.update_idletasks()
+        self.productive_processes.update_idletasks()
+        self.unproductive_processes.update_idletasks()
+        self.root.after(10000, self.get_states_processes)
+    
+    def proc_state_btn_event(self, state, proc_name):
+        pop_up_window = ctk.CTkToplevel(self.root)
+        self.current_popup = pop_up_window
+        pop_up_window.title("Remove App")
+        pop_up_window.geometry("200x200")
+        pop_up_window.grab_set()
+        remove_btn = ctk.CTkButton(pop_up_window, text="Remove", command=lambda state=state, name=proc_name: self.remove_proc(state, name))
+        cancel_btn = ctk.CTkButton(pop_up_window, text="Cancel", command=pop_up_window.destroy)
+        remove_btn.grid(row=0, column=0, padx=20, pady=4, sticky="ew")
+        cancel_btn.grid(row=1, column=0, padx=20, pady=8, sticky="ew")
+    
+    def remove_proc(self, state, name):
+        if name in self._valid_states[state]:
+            self._valid_states[state].discard(name)
+            if hasattr(self, 'current_popup'):
+                self.current_popup.destroy()
+        else:
+            print(f"{name} does not exist.")
+            self.current_popup.destroy()
+        self.get_states_processes()
     
     def add_proc(self, btn, proc):
         found = False
@@ -228,6 +287,7 @@ class MonitorToolUI:
         else:
             print(f"{proc} already exists.")
             self.current_popup.destroy()
+        self.get_states_processes()
 
     def determine_state(self):
         if not self.inactive:
@@ -288,15 +348,6 @@ Total
 Productive: {round(self.running_data["stats"]["total"]["productive"] // 3600)}
 Unproductive: {round(self.running_data["stats"]["total"]["unproductive"] // 3600)}
 Idle: {round(self.running_data["stats"]["total"]["idle"] // 3600)}""")
-            
-#            idle_list = ", ".join(sorted(self._valid_states["idle"])) or "None"
-#            prod_list = ", ".join(sorted(self._valid_states["productive"])) or "None"
-#            unprod_list = ", ".join(sorted(self._valid_states["unproductive"])) or "None"
-#            self.states_processes.configure(text=f"""
-#Idle: {idle_list}
-#Productive: {prod_list}
-#Unproductive: {unprod_list}
-#""")
         self.root.after(60000, self.draw_infrequent)
     
     def update(self):
@@ -313,6 +364,7 @@ Idle: {round(self.running_data["stats"]["total"]["idle"] // 3600)}""")
         self.root.after(1000, self.draw_infrequent)
         self.root.after(1500, self.check_date)
         self.root.after(1750, self.get_processes_list)
+        self.root.after(1775, self.get_states_processes)
         self.root.mainloop()
 
 if __name__ == "__main__":
