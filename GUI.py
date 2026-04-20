@@ -27,12 +27,6 @@ class MonitorToolUI:
         self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
         self.root.grid_columnconfigure((0,1,2,3), weight=1)
         self.root.grid_rowconfigure(1, weight=1)
-        # Variables
-        self._valid_states = {
-            "productive": {"Code.exe"},
-            "unproductive": {"PathOfExile.exe", "Balls.exe"},
-            "idle": set(),
-        }
         self.productivity_state = "idle"
         self.window_visible = True
         self.last_stat_update = time.time()
@@ -58,6 +52,11 @@ class MonitorToolUI:
                     "unproductive": 0,
                     "idle": 0
                 }
+            },
+            "statuses": {
+                "productive": {"Code.exe"},
+                "unproductive": {"PathOfExile.exe", "Balls.exe"},
+                "idle": set(),
             }
         }
         self.last_active = date.today()
@@ -105,7 +104,7 @@ class MonitorToolUI:
 
     def set_status(self, state):
         print(state)
-        if state in self._valid_states.keys():
+        if state in self.running_data["statuses"].keys():
             current_time = time.time()
             self.running_data["stats"]["day"][self.productivity_state] += current_time - self.last_stat_update
             self.running_data["stats"]["month"][self.productivity_state] += current_time - self.last_stat_update
@@ -118,7 +117,10 @@ class MonitorToolUI:
         
     def auto_update_stats(self):
         print("Saving...")
-        obj_json = json.dumps(self.running_data, indent=4)
+        data_to_save = self.running_data.copy()
+        data_to_save["statuses"] = {k: list(v) for k, v in self.running_data["statuses"].items()}
+        
+        obj_json = json.dumps(data_to_save, indent=4)   # ← Fixed
         with open(self.file_path, 'w') as f:
             f.write(obj_json)
         self.root.after(20000, self.auto_update_stats)
@@ -146,11 +148,24 @@ class MonitorToolUI:
         print("File opening...")
         with open(self.file_path, "r", encoding='utf-8') as f:
             self.running_data = json.load(f)
-            if "metadata" not in self.running_data:
-                self.running_data["metadata"] = {"last_active_date": date.today().isoformat()}
+        if "statuses" in self.running_data:
+            self.running_data["statuses"] = {
+                k: set(v) for k, v in self.running_data["statuses"].items()
+            }
+        if "metadata" not in self.running_data:
+            self.running_data["metadata"] = {"last_active_date": date.today().isoformat()}
+        if "statuses" not in self.running_data:
+            self.running_data["statuses"] = {
+                "productive": {"Code.exe"},
+                "unproductive": {"PathOfExile.exe", "Balls.exe"},
+                "idle": set(),
+            }
 
     def save_to_file(self):
-        obj_json = json.dumps(self.running_data, indent=4)
+        data_to_save = self.running_data.copy()
+        data_to_save["statuses"] = {k: list(v) for k, v in self.running_data["statuses"].items()}
+        
+        obj_json = json.dumps(data_to_save, indent=4)   # ← Fixed
         with open(self.file_path, 'w') as f:
             f.write(obj_json)
 
@@ -215,7 +230,7 @@ class MonitorToolUI:
             widget.destroy()
         for widget in self.unproductive_processes.winfo_children():
             widget.destroy()
-        for state, processes in self._valid_states.items():
+        for state, processes in self.running_data["statuses"].items():
             for i, process in enumerate(processes):
                 if state == "idle":
                     proc_btn = ctk.CTkButton(
@@ -264,8 +279,8 @@ class MonitorToolUI:
         cancel_btn.grid(row=1, column=0, padx=20, pady=8, sticky="ew")
     
     def remove_proc(self, state, name):
-        if name in self._valid_states[state]:
-            self._valid_states[state].discard(name)
+        if name in self.running_data["statuses"][state]:
+            self.running_data["statuses"][state].discard(name)
             if hasattr(self, 'current_popup'):
                 self.current_popup.destroy()
         else:
@@ -275,12 +290,12 @@ class MonitorToolUI:
     
     def add_proc(self, btn, proc):
         found = False
-        for state in self._valid_states.values():
+        for state in self.running_data["statuses"].values():
             if proc in state:
                 found = True
                 break
         if not found:
-            self._valid_states[btn].add(proc)
+            self.running_data["statuses"][btn].add(proc)
             if hasattr(self, 'current_popup'):
                 self.current_popup.destroy()
             self.draw_infrequent()
@@ -292,7 +307,7 @@ class MonitorToolUI:
     def determine_state(self):
         if not self.inactive:
             foreground_app = self.get_foreground_process_name()
-            for k, v in self._valid_states.items():
+            for k, v in self.running_data["statuses"].items():
                 if foreground_app in v:
                     self.set_status(k)
                     break
