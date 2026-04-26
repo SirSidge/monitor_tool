@@ -3,6 +3,9 @@
 A simple Windows desktop application that tracks your productivity by monitoring which applications you use.  
 It automatically categorizes time spent as **Productive**, **Unproductive**, or **Idle** and displays the statistics in real-time.
 
+**Demo:**
+![Demo of tool](assets/monitor_tool.gif)
+
 ### Features
 - Tracks time in Productive, Unproductive, and Idle categories (day / month / total)
 - Color-coded system tray icon (Green = Productive, Red = Unproductive, Black = Idle)
