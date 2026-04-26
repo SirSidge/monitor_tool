@@ -1,58 +1,36 @@
-# monitor_tool
+# Monitor Tool
 
-# What is this project?
-    As the name suggests, it is a monitoring app. This app will run in the background on Windows checking what apps are currently running in the foreground. A running state will be updated depending on whether the app is productive/unproductive or other. The time spent is recorded to show how much time is spent on each state. An alarm is setup to go off when I've spent too much time being unproductive. You can add apps dynamically, when displaying the current processes and adding them to the relevant state. Your stats are stored locally so that you can have a daily/weekly/monthly/yearly overview.
-# Goal
-    The goal is to help me be more productive with my time. The alarm and force-closure of apps will push me to stop/reduce my unproductive time by preventing those 4+h long gaming sessions. I love stats, being able to store them will be very interesting for me to go over.
+A simple Windows desktop application that tracks your productivity by monitoring which applications you use.  
+It automatically categorizes time spent as **Productive**, **Unproductive**, or **Idle** and displays the statistics in real-time.
 
-# Bugs
-    1: 
+### Features
+- Tracks time in Productive, Unproductive, and Idle categories (day / month / total)
+- Color-coded system tray icon (Green = Productive, Red = Unproductive, Black = Idle)
+- View and manage running processes
+- Assign apps to productive/unproductive/idle categories
+- Runs minimized to the tray
+- Auto-saves your data every 20 seconds
+- Lightweight and works on any Windows PC
 
-# Polish
-    1: 
+### How to Use
 
-# To Do
-    1: ----- Unproductive calculator ----- 
-        1.1: Daily time limit of 2h
-        1.2: Weekly time limit of 18h
-        1.3: Reset and/or Sleep button for above timer.
-        1.4: Auto-close unproductive apps once time limit is reached
-        1.5: Warning 30min before time limit/s are reached.
+1. Go to https://github.com/SirSidge/monitor_tool/releases
+2. Download the latest `MonitorTool.exe`.
+3. Double-click the exe to run the app.
 
-    2: ----- Productivity calculator ----- 
-        2.1: Measure productive time ✓✓✓✓✓✓✓✓✓✓✓✓✓✓✓✓
+**Optional:** To start automatically with Windows:
+- Press `Win + R`, type `shell:startup`, press Enter.
+- Copy `MonitorTool.exe` (or create a shortcut) into that folder.
 
-    3: ----- Single monitoring app ----- 
-        3.1: Check if app is already running, if so prevent second iteration.
+### How to Clone and Run from Source
 
-    4: ----- Implement AI -----
-        4.1: Include AI to detect if an app (for example a new game) should be allocated to unproductive or not.
-        4.2: Automatically add app name to the relevant list.
+```bash
+# 1. Clone the repository
+git clone https://github.com/SirSidge/monitor_tool.git
+cd monitor_tool
 
-    5: ----- Inactive -----
-        5.1: When there has been no activity on the peripherals for more than 5min (?) then change status to idle. ✓✓✓✓✓✓✓✓✓✓✓✓✓✓✓✓
+# 2. Install dependencies
+pip install customtkinter pystray pillow psutil
 
-    6: ----- Display processes -----
-        6.1: Ability to copy app name from display processes window
-        6.2: Create display processes window. Shows current running apps.
-        6.3: Add selected app to any of the statuses
-    
-    7: ----- Local storage -----
-        7.1: Store data locally.
-        7.2: Save data every minute(?) in case of crashes, minimising loss of data.
-        7.3: Save data as app is closed. (on exit)
-    
-    8: ----- Display Stats -----
-        8.1: Create button that will open a browser page.
-        8.2: Upload the local data to the browser page (as needed? Or maybe all of it at once, cached?)
-        8.3: Design browser page to display stats clearly and be interactive. See PowerBi for examples (but you can do better)
-
-
-    ----- Misc -----
-        What does the JSON file need to store?
-        - Running totals: daily, weekly, monthly, and total
-        - Time in statuses: Productive, Unproductive, Idle
-        - What date and time events occured
-
-
-https://x.com/i/grok/share/e4c8ef87b09b44a1b645338f9d30628f
+# 3. Run the app
+python monitor_tool.py
